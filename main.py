@@ -2,6 +2,7 @@ import os
 import uvicorn
 from sarufi import Sarufi
 from dataclasses import dataclass
+from mangum import Mangum
 
 from telegram import (
     Update,
@@ -28,6 +29,8 @@ from utils import (
   get_clicked_button_text)
 
 app = FastAPI()
+
+handler = Mangum(app)
 
 load_dotenv()
 
