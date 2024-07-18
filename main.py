@@ -28,16 +28,26 @@ from utils import (
    simulate_typing,
   get_clicked_button_text)
 
+from logger import logger
+
+
 app = FastAPI()
 
 handler = Mangum(app)
 
 load_dotenv()
 
+# Check if all required environment variables are set
+
+assert os.getenv("TELEGRAM_BOT_TOKEN") , "TELEGRAM_BOT_TOKEN not set"
+assert os.getenv("SARUFI_API_KEY"), "SARUFI_API_KEY not set"
+assert os.getenv("SARUFI_BOT_ID"), "SARUFI_BOT_ID not set"
+assert os.getenv("START_MESSAGE"), "START_MESSAGE not set"
+
 # Set up Sarufi and get bot's name
 sarufi = Sarufi(api_key=os.getenv("SARUFI_API_KEY"))
 bot_name=sarufi.get_bot(os.getenv("SARUFI_BOT_ID")).name
-PORT = 8000
+PORT = os.getenv("PORT", 8000)
 
 @dataclass
 class WebhookUpdate:
@@ -111,12 +121,17 @@ async def start(update: Update, context: CustomContext)->None:
   """
   Starts the bot.
   """
-  first_name = update.message.chat.first_name
-  await reply_with_typing(
-      update,
-      context,
-      os.getenv("START_MESSAGE").format(name=first_name,bot_name=bot_name),
-  )
+  try:
+
+    first_name = update.message.chat.first_name
+    await reply_with_typing(
+        update,
+        context,
+        os.getenv("START_MESSAGE","Welcome to {bot_name}").format(user_name=first_name,bot_name=bot_name),
+    )
+  except Exception as error:
+    logger.error(f"Error: {error} starting the bot")
+    await reply_with_typing(update, context, "Welcome to the bot")
 
 
 async def help(update: Update, context: CallbackContext)->None:
@@ -129,9 +144,7 @@ async def help(update: Update, context: CallbackContext)->None:
 
 # Set up application    
 context_types = ContextTypes(context=CustomContext)
-application = (
-    Application.builder().token(os.getenv("TELEGRAM_BOT_TOKEN")).updater(None).context_types(context_types).build()
-)
+application = Application.builder().token(os.getenv("TELEGRAM_BOT_TOKEN")).updater(None).context_types(context_types).build()
 
 @app.get("/")
 async def webhook(request: Request):
@@ -158,4 +171,4 @@ async def webhook_handler(request: Request,tasks: BackgroundTasks):
 
 
 if __name__ == "__main__":
-    uvicorn.run("main:app", host="0.0.0.0", port=PORT,reload=True)
+    uvicorn.run("main:app",port=PORT)
